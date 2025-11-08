@@ -1,0 +1,38 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.elf
+*.bin
+*.map
+*.wasm
+*.aot
+*.pyc
+__pycache__/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+.history/
+
+# Arduino
+*.hex
+*.eep
+*.lss
+*.sym
+
+# IDE
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

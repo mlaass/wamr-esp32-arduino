@@ -1,0 +1,96 @@
+# WAMR Source Files
+
+This library includes the following files from WAMR:
+
+**Total files:** 88
+
+## File List
+
+- `common/arch/invokeNative_xtensa.s`
+- `common/posix/posix_blocking_op.c`
+- `common/posix/posix_clock.c`
+- `common/posix/posix_file.c`
+- `common/posix/posix_malloc.c`
+- `common/posix/posix_memmap.c`
+- `common/posix/posix_sleep.c`
+- `common/posix/posix_socket.c`
+- `common/posix/posix_thread.c`
+- `common/posix/posix_time.c`
+- `common/wasm_application.c`
+- `common/wasm_blocking_op.c`
+- `common/wasm_c_api.c`
+- `common/wasm_c_api_internal.h`
+- `common/wasm_exec_env.c`
+- `common/wasm_exec_env.h`
+- `common/wasm_loader_common.c`
+- `common/wasm_loader_common.h`
+- `common/wasm_memory.c`
+- `common/wasm_memory.h`
+- `common/wasm_native.c`
+- `common/wasm_native.h`
+- `common/wasm_runtime_common.c`
+- `common/wasm_runtime_common.h`
+- `common/wasm_shared_memory.c`
+- `common/wasm_shared_memory.h`
+- `common/wasm_suspend_flags.h`
+- `esp-idf/espidf_clock.c`
+- `esp-idf/espidf_file.c`
+- `esp-idf/espidf_malloc.c`
+- `esp-idf/espidf_memmap.c`
+- `esp-idf/espidf_platform.c`
+- `esp-idf/espidf_socket.c`
+- `esp-idf/espidf_thread.c`
+- `esp-idf/platform_internal.h`
+- `include/aot_comp_option.h`
+- `include/aot_export.h`
+- `include/gc_export.h`
+- `include/lib_export.h`
+- `include/wasm_c_api.h`
+- `include/wasm_export.h`
+- `interpreter/wasm.h`
+- `interpreter/wasm_interp.h`
+- `interpreter/wasm_interp_fast.c`
+- `interpreter/wasm_loader.c`
+- `interpreter/wasm_loader.h`
+- `interpreter/wasm_opcode.h`
+- `interpreter/wasm_runtime.c`
+- `interpreter/wasm_runtime.h`
+- `libc-builtin/libc_builtin_wrapper.c`
+- `libc-wasi/libc_wasi_wrapper.h`
+- `mem-alloc/ems/ems_alloc.c`
+- `mem-alloc/ems/ems_gc.c`
+- `mem-alloc/ems/ems_gc.h`
+- `mem-alloc/ems/ems_gc_internal.h`
+- `mem-alloc/ems/ems_hmu.c`
+- `mem-alloc/ems/ems_kfc.c`
+- `mem-alloc/mem_alloc.c`
+- `mem-alloc/mem_alloc.h`
+- `thread-mgr/thread_manager.c`
+- `thread-mgr/thread_manager.h`
+- `utils/bh_assert.c`
+- `utils/bh_assert.h`
+- `utils/bh_atomic.h`
+- `utils/bh_bitmap.c`
+- `utils/bh_bitmap.h`
+- `utils/bh_common.c`
+- `utils/bh_common.h`
+- `utils/bh_hashmap.c`
+- `utils/bh_hashmap.h`
+- `utils/bh_leb128.c`
+- `utils/bh_leb128.h`
+- `utils/bh_list.c`
+- `utils/bh_list.h`
+- `utils/bh_log.c`
+- `utils/bh_log.h`
+- `utils/bh_platform.h`
+- `utils/bh_queue.c`
+- `utils/bh_queue.h`
+- `utils/bh_vector.c`
+- `utils/bh_vector.h`
+- `utils/gnuc.h`
+- `utils/runtime_timer.c`
+- `utils/runtime_timer.h`
+- `utils/uncommon/bh_getopt.c`
+- `utils/uncommon/bh_getopt.h`
+- `utils/uncommon/bh_read_file.c`
+- `utils/uncommon/bh_read_file.h`

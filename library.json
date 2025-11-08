@@ -1,0 +1,74 @@
+{
+  "name": "WAMR-ESP32",
+  "version": "1.0.0",
+  "description": "WebAssembly Micro Runtime (WAMR) for ESP32/ESP32-S3 Arduino and PlatformIO projects. Lightweight WebAssembly interpreter with small footprint and high performance.",
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "runtime",
+    "interpreter",
+    "esp32",
+    "embedded",
+    "iot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourname/wamr-esp32-arduino.git"
+  },
+  "authors": [
+    {
+      "name": "WAMR-ESP32-Arduino Contributors",
+      "url": "https://github.com/yourname/wamr-esp32-arduino"
+    },
+    {
+      "name": "Bytecode Alliance",
+      "url": "https://bytecodealliance.org/",
+      "note": "Original WAMR runtime"
+    }
+  ],
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/yourname/wamr-esp32-arduino",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "export": {
+    "include": [
+      "src",
+      "examples",
+      "docs",
+      "LICENSE",
+      "README.md"
+    ]
+  },
+  "build": {
+    "flags": [
+      "-DBH_PLATFORM_ESP_IDF=1",
+      "-DBUILD_TARGET_XTENSA=1",
+      "-DWASM_ENABLE_INTERP=1",
+      "-DWASM_ENABLE_FAST_INTERP=1",
+      "-DWASM_ENABLE_LIBC_BUILTIN=1",
+      "-DWASM_ENABLE_BULK_MEMORY=1",
+      "-DWASM_ENABLE_REF_TYPES=1",
+      "-DBH_MALLOC=wasm_runtime_malloc",
+      "-DBH_FREE=wasm_runtime_free",
+      "-std=gnu99",
+      "-Wno-format",
+      "-Wno-unused-parameter",
+      "-Wno-unused-variable",
+      "-Wno-sign-compare"
+    ],
+    "includeDir": "src",
+    "srcFilter": [
+      "+<*>",
+      "+<wamr/core/>",
+      "-<wamr/core/iwasm/aot/>",
+      "-<wamr/core/iwasm/compilation/>",
+      "-<wamr/core/iwasm/fast-jit/>"
+    ]
+  },
+  "dependencies": {},
+  "examples": [
+    "examples/basic_wasm/basic_wasm.ino",
+    "examples/native_functions/native_functions.ino",
+    "examples/memory_test/memory_test.ino"
+  ]
+}

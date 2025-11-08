@@ -1,0 +1,34 @@
+#######################################
+# Syntax Coloring Map For WAMR-ESP32
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+WamrRuntime	KEYWORD1
+WamrModule	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+end	KEYWORD2
+loadModule	KEYWORD2
+loadModuleFromFile	KEYWORD2
+callFunction	KEYWORD2
+callFunctionV	KEYWORD2
+getExportFunction	KEYWORD2
+registerNativeFunction	KEYWORD2
+setHeapSize	KEYWORD2
+getError	KEYWORD2
+getMemoryUsage	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+WAMR_DEFAULT_HEAP_SIZE	LITERAL1
+WAMR_MIN_HEAP_SIZE	LITERAL1
+WAMR_MAX_HEAP_SIZE	LITERAL1
