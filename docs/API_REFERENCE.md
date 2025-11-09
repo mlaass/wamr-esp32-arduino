@@ -138,9 +138,9 @@ if (!module.load(wasm, sizeof(wasm), 32*1024, 128*1024)) {
 }
 ```
 
-### `callFunction()`
+### `callFunction()` (Safe API - Recommended)
 
-Call an exported WASM function by name.
+Call an exported WASM function by name with automatic pthread wrapping.
 
 ```cpp
 bool callFunction(const char* func_name,
@@ -156,6 +156,20 @@ bool callFunction(const char* func_name,
 **Returns:**
 - `true` if call successful
 - `false` if call failed (check `getError()`)
+
+**Thread Safety:**
+This is the **safe API** that automatically wraps the WASM call in a pthread context. WAMR requires pthread context to execute, but Arduino's main task is not a pthread. This method:
+- Creates a temporary pthread
+- Executes the WASM function in that context
+- Returns the result back to the caller
+
+**Safe to call from:**
+- Arduino `setup()`
+- Arduino `loop()`
+- Any Arduino task/function
+
+**Performance Note:**
+Has pthread creation overhead (~100-500μs). For high-frequency calls (>100 Hz), consider using `callFunctionRaw()` from your own pthread.
 
 **Important:** For functions that return values, the result is stored in `argv[0]` after the call.
 
@@ -174,6 +188,102 @@ if (module.callFunction("add", 2, args)) {
   Serial.printf("Result: %u\n", result);
 }
 ```
+
+### `callFunctionRaw()` (Raw API - Advanced)
+
+Call an exported WASM function by name **without** pthread wrapping.
+
+```cpp
+bool callFunctionRaw(const char* func_name,
+                     uint32_t argc = 0,
+                     uint32_t* argv = nullptr);
+```
+
+**Parameters:**
+- `func_name` - Name of exported function
+- `argc` - Number of arguments
+- `argv` - Array of arguments (input) and results (output)
+
+**Returns:**
+- `true` if call successful
+- `false` if call failed (check `getError()`)
+
+**DANGER:**
+This is the **raw API** that calls WAMR directly without pthread wrapping. You MUST already be in a pthread context when calling this function.
+
+**Will CRASH if called from:**
+- Arduino `setup()`
+- Arduino `loop()`
+- Arduino main task
+
+**Safe to call from:**
+- Your own pthread created with `pthread_create()`
+- FreeRTOS tasks created with `xTaskCreate()`
+
+**Use cases:**
+- High-frequency WASM calls (>100 Hz) to avoid pthread overhead
+- When you already manage your own thread pool
+- Advanced threading scenarios where you control the pthread lifecycle
+
+**Example:**
+
+```cpp
+void* wasm_worker_thread(void* arg) {
+  WamrModule* module = (WamrModule*)arg;
+
+  // We're in a pthread, safe to use callFunctionRaw
+  for (int i = 0; i < 1000; i++) {
+    uint32_t args[2] = {i, i+1};
+    module->callFunctionRaw("add", 2, args);
+  }
+
+  return nullptr;
+}
+
+void setup() {
+  // ... initialize WAMR and load module ...
+
+  pthread_t thread;
+  pthread_create(&thread, nullptr, wasm_worker_thread, &module);
+  pthread_join(thread, nullptr);
+}
+```
+
+### `setThreadStackSize()` (Static)
+
+Configure the pthread stack size used by `callFunction()`.
+
+```cpp
+static void setThreadStackSize(size_t stack_size);
+```
+
+**Parameters:**
+- `stack_size` - Stack size in bytes (default: 32KB)
+
+**Purpose:**
+When `callFunction()` creates a pthread to execute WASM code, it uses this stack size. Increase if you get stack overflow crashes with complex WASM functions.
+
+**Default:** `WAMR_DEFAULT_THREAD_STACK` (32KB)
+
+**Recommended values:**
+- Simple functions: 16-32 KB
+- Complex functions with recursion: 48-64 KB
+- Heavy computation: 64-128 KB
+
+**Example:**
+
+```cpp
+// Increase stack for complex WASM function
+WamrModule::setThreadStackSize(64 * 1024);  // 64KB
+
+uint32_t args[1] = {30};
+module.callFunction("complex_recursive_func", 1, args);
+
+// Reset to default
+WamrModule::setThreadStackSize(32 * 1024);
+```
+
+**Note:** This only affects `callFunction()`, not `callFunctionRaw()`. When using raw API, you control the pthread stack size yourself via `pthread_attr_setstacksize()`.
 
 ### `getResult()`
 
@@ -245,11 +355,14 @@ wasm_module_inst_t getInstance();
 #define WAMR_MAX_HEAP_SIZE        (512 * 1024)  // 512KB
 ```
 
-### Stack Size
+### Stack Sizes
 
 ```cpp
-#define WAMR_DEFAULT_STACK_SIZE   (16 * 1024)   // 16KB
+#define WAMR_DEFAULT_STACK_SIZE   (16 * 1024)   // 16KB - WASM execution stack
+#define WAMR_DEFAULT_THREAD_STACK (32 * 1024)   // 32KB - pthread stack for callFunction()
 ```
+
+**Note:** `WAMR_DEFAULT_STACK_SIZE` is for WASM module execution stack (set in `load()`), while `WAMR_DEFAULT_THREAD_STACK` is for the pthread stack used by `callFunction()`.
 
 ### Heap Pool Size
 

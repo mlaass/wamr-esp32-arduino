@@ -5,6 +5,7 @@
  * - Exporting Arduino/ESP32 native functions to WASM
  * - Calling native functions from WASM code
  * - Controlling hardware (LED) from WASM
+ * - Using the safe pthread-wrapped API
  *
  * The WASM module can call pinMode() and digitalWrite() to control an LED.
  */

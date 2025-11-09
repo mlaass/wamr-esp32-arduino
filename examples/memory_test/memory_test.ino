@@ -6,6 +6,7 @@
  * - PSRAM detection and usage
  * - Heap size configuration
  * - Memory profiling
+ * - Using the safe pthread-wrapped API
  *
  * Useful for understanding memory requirements for your WASM applications.
  */

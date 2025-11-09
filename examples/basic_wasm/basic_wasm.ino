@@ -4,10 +4,14 @@
  * This example demonstrates:
  * - Initializing WAMR runtime
  * - Loading a simple WASM module
- * - Calling WASM functions
+ * - Calling WASM functions (using safe pthread-wrapped API)
  * - Cleanup
  *
  * The WASM module contains a simple function that adds two numbers.
+ *
+ * Note: This example uses the safe callFunction() API which automatically
+ * handles pthread context. This is the recommended approach for Arduino code.
+ * See the 'threading' example for advanced pthread management.
  */
 
 #include <WAMR.h>
@@ -69,8 +73,9 @@ void setup() {
   }
   Serial.println("✓ Module loaded\n");
 
-  // Step 3: Call WASM function
+  // Step 3: Call WASM function (Safe API - pthread wrapped)
   Serial.println("Step 3: Calling 'add(42, 58)'...");
+  Serial.println("Note: Using safe callFunction() - automatically wraps in pthread\n");
 
   uint32_t args[2] = {42, 58}; // Arguments for add function
   if (!wasmModule.callFunction("add", 2, args)) {

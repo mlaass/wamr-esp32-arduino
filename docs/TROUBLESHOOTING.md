@@ -109,6 +109,61 @@ WamrRuntime::begin(256 * 1024);  // Larger runtime heap
 
 ## Function Call Issues
 
+### "assertion failed: pthread != NULL" or ESP32 crashes on callFunction()
+
+**Problem:** Calling WASM functions from Arduino setup() or loop() without pthread context.
+
+**Cause:**
+WAMR requires execution to happen in a pthread context. Arduino's main task is NOT a pthread, so directly calling WASM functions causes an assertion failure or crash:
+```
+assertion "pthread != NULL" failed: file "esp-idf/espidf_thread.c", line 123
+```
+
+**Solution:**
+
+**Use the safe API (recommended):**
+```cpp
+// This automatically wraps the call in pthread context
+module.callFunction("add", 2, args);  // ✓ SAFE
+```
+
+**DO NOT use the raw API from Arduino:**
+```cpp
+// This will CRASH from setup() or loop()!
+module.callFunctionRaw("add", 2, args);  // ✗ DANGER
+```
+
+**When to use each API:**
+
+| API | Use from | Overhead | Use case |
+|-----|----------|----------|----------|
+| `callFunction()` | setup(), loop(), any Arduino code | ~100-500μs pthread creation | General use, <100 calls/sec |
+| `callFunctionRaw()` | Your own pthread only | None | High-frequency calls, >100/sec |
+
+**Example of using raw API correctly:**
+```cpp
+void* worker_thread(void* arg) {
+  WamrModule* module = (WamrModule*)arg;
+
+  // Now safe to use raw API - we're in a pthread
+  for (int i = 0; i < 1000; i++) {
+    uint32_t args[2] = {i, i+1};
+    module->callFunctionRaw("add", 2, args);  // ✓ OK here
+  }
+  return nullptr;
+}
+
+void setup() {
+  // ... init WAMR and load module ...
+
+  pthread_t thread;
+  pthread_create(&thread, nullptr, worker_thread, &module);
+  pthread_join(thread, nullptr);
+}
+```
+
+See the `threading` example for detailed demonstrations of both APIs.
+
 ### "Function not found"
 
 **Problem:** Function name doesn't exist in module.
@@ -426,8 +481,17 @@ Typical performance on ESP32 @ 240MHz:
 | Runtime init | ~50ms |
 | Module load (10KB) | ~20ms |
 | Module load (100KB) | ~200ms |
-| Function call overhead | ~10-50μs |
+| `callFunction()` overhead | ~100-500μs (includes pthread creation) |
+| `callFunctionRaw()` overhead | ~10-50μs (no pthread) |
 | Simple calculation (add) | ~1μs |
 | Complex calculation (fib(20)) | ~500μs |
+
+**API Performance Comparison:**
+
+For 100 function calls:
+- `callFunction()`: ~10-50ms total (pthread overhead dominates)
+- `callFunctionRaw()` from single pthread: ~1-5ms total (no overhead)
+
+**Recommendation:** Use `callFunction()` for occasional calls (<100 Hz). For high-frequency calls, manage your own pthread and use `callFunctionRaw()`.
 
 *Your results may vary based on module complexity and system load.*

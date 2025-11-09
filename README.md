@@ -21,6 +21,7 @@ WAMR is a lightweight WebAssembly runtime that allows you to:
 - ✅ **Fast Interpreter** - Optimized WASM interpreter (~2X faster than classic)
 - ✅ **Small Footprint** - Minimal memory overhead (50-100KB + module size)
 - ✅ **Arduino-Friendly** - Simple C++ API with Serial debugging
+- ✅ **Thread-Safe API** - Automatic pthread wrapping for Arduino compatibility
 - ✅ **PSRAM Support** - Automatically uses PSRAM when available
 - ✅ **Native Functions** - Call Arduino functions from WASM
 - ✅ **Built-in libc** - Standard C library functions available to WASM
@@ -47,7 +48,7 @@ platform = espressif32
 board = esp32dev  ; or your board
 framework = arduino
 lib_deps =
-    https://github.com/yourname/wamr-esp32-arduino.git
+    https://github.com/mlaass/wamr-esp32-arduino.git
 ```
 
 ### Arduino IDE
@@ -63,7 +64,7 @@ Clone or download this repository to your Arduino libraries folder:
 
 ```bash
 cd ~/Arduino/libraries/  # or your libraries directory
-git clone https://github.com/yourname/wamr-esp32-arduino.git
+git clone https://github.com/mlaass/wamr-esp32-arduino.git
 ```
 
 ## Quick Start
@@ -92,7 +93,7 @@ void setup() {
     return;
   }
 
-  // Call WASM function
+  // Call WASM function (safe - auto pthread-wrapped)
   uint32_t args[2] = {42, 58};
   if (module.callFunction("add", 2, args)) {
     Serial.printf("Result: %u\n", args[0]);
@@ -106,7 +107,7 @@ void loop() {
 
 ## Examples
 
-The library includes three example sketches:
+The library includes four example sketches:
 
 ### 1. Basic WASM (`basic_wasm.ino`)
 Demonstrates:
@@ -127,6 +128,13 @@ Demonstrates:
 - PSRAM usage
 - Heap size configuration
 - Performance profiling
+
+### 4. Threading (`threading.ino`)
+Demonstrates:
+- Safe API with automatic pthread wrapping (recommended)
+- Raw API for manual thread management (advanced)
+- Performance comparison between APIs
+- Custom thread stack configuration with setThreadStackSize()
 
 ## Documentation
 
@@ -204,9 +212,17 @@ WamrModule module;
 // Load WASM module
 module.load(wasm_bytes, size, stack_size, heap_size);
 
-// Call function
+// Call function (SAFE - recommended for Arduino)
+// Automatically wraps in pthread context
 uint32_t args[] = {arg1, arg2};
 module.callFunction("function_name", num_args, args);
+
+// Call function (RAW - advanced use only)
+// Must be called from pthread context, crashes otherwise
+module.callFunctionRaw("function_name", num_args, args);
+
+// Configure pthread stack size for callFunction()
+WamrModule::setThreadStackSize(64 * 1024);  // 64KB stack
 
 // Get result
 uint32_t result = args[0];  // Result in first argument

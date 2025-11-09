@@ -7,11 +7,32 @@
 
 #include "WAMR.h"
 #include <esp_heap_caps.h>
+#include <pthread.h>
 
 // Static member initialization
 bool WamrRuntime::initialized = false;
 char *WamrRuntime::global_heap_buf = nullptr;
 const char *WamrRuntime::error_msg = nullptr;
+
+// WamrModule static members
+size_t WamrModule::thread_stack_size = WAMR_DEFAULT_THREAD_STACK;
+
+// Context structure for passing data to pthread wrapper
+struct WasmCallContext {
+  WamrModule *module;
+  const char *func_name;
+  uint32_t argc;
+  uint32_t *argv;
+  bool success;
+};
+
+// Pthread wrapper function
+void *wasm_thread_wrapper(void *arg) {
+  WasmCallContext *ctx = (WasmCallContext *)arg;
+  ctx->success = ctx->module->callFunctionInternal(ctx->func_name, ctx->argc,
+                                                     ctx->argv);
+  return nullptr;
+}
 
 // ============================================================================
 // WamrRuntime Implementation
@@ -112,8 +133,8 @@ void WamrRuntime::printMemoryUsage() {
 // ============================================================================
 
 WamrModule::WamrModule()
-    : module(nullptr), module_inst(nullptr), exec_env(nullptr), last_result(0),
-      loaded(false) {
+    : module(nullptr), module_inst(nullptr), stack_size_for_exec_env(0),
+      last_result(0), loaded(false) {
   memset(error_buf, 0, sizeof(error_buf));
 }
 
@@ -157,18 +178,9 @@ bool WamrModule::load(const uint8_t *wasm_bytes, uint32_t size,
 
   Serial.println("WAMR: Module instantiated successfully");
 
-  // Create execution environment
-  exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
-  if (!exec_env) {
-    snprintf(error_buf, sizeof(error_buf),
-             "Failed to create execution environment");
-    Serial.printf("WAMR Error: %s\n", error_buf);
-    wasm_runtime_deinstantiate(module_inst);
-    wasm_runtime_unload(module);
-    module_inst = nullptr;
-    module = nullptr;
-    return false;
-  }
+  // Store stack size for later exec_env creation
+  // Note: exec_env must be created per-thread, not stored globally
+  stack_size_for_exec_env = stack_size;
 
   loaded = true;
   Serial.println("WAMR: Module ready for execution");
@@ -178,8 +190,75 @@ bool WamrModule::load(const uint8_t *wasm_bytes, uint32_t size,
 
 bool WamrModule::callFunction(const char *func_name, uint32_t argc,
                               uint32_t *argv) {
+  // Safe API: Wrap call in pthread context
+  WasmCallContext ctx;
+  ctx.module = this;
+  ctx.func_name = func_name;
+  ctx.argc = argc;
+  ctx.argv = argv;
+  ctx.success = false;
+
+  pthread_t thread;
+  pthread_attr_t attr;
+
+  // Initialize thread attributes
+  if (pthread_attr_init(&attr) != 0) {
+    snprintf(error_buf, sizeof(error_buf),
+             "Failed to initialize pthread attributes");
+    Serial.printf("WAMR Error: %s\n", error_buf);
+    return false;
+  }
+
+  // Set stack size
+  if (pthread_attr_setstacksize(&attr, thread_stack_size) != 0) {
+    snprintf(error_buf, sizeof(error_buf), "Failed to set pthread stack size");
+    Serial.printf("WAMR Error: %s\n", error_buf);
+    pthread_attr_destroy(&attr);
+    return false;
+  }
+
+  // Set joinable (we need to wait for completion)
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+  // Create thread
+  if (pthread_create(&thread, &attr, wasm_thread_wrapper, &ctx) != 0) {
+    snprintf(error_buf, sizeof(error_buf),
+             "Failed to create pthread for WASM execution");
+    Serial.printf("WAMR Error: %s\n", error_buf);
+    pthread_attr_destroy(&attr);
+    return false;
+  }
+
+  // Wait for thread to complete
+  pthread_join(thread, nullptr);
+  pthread_attr_destroy(&attr);
+
+  return ctx.success;
+}
+
+bool WamrModule::callFunctionRaw(const char *func_name, uint32_t argc,
+                                 uint32_t *argv) {
+  // Raw API: Direct call without pthread wrapper
+  // WARNING: Must be called from within a pthread context!
+  return callFunctionInternal(func_name, argc, argv);
+}
+
+bool WamrModule::callFunctionInternal(const char *func_name, uint32_t argc,
+                                      uint32_t *argv) {
+  // Internal implementation - actual WASM call
   if (!loaded || !module_inst) {
     snprintf(error_buf, sizeof(error_buf), "Module not loaded");
+    Serial.printf("WAMR Error: %s\n", error_buf);
+    return false;
+  }
+
+  // Create execution environment for this thread
+  // IMPORTANT: exec_env is thread-specific and must be created in each pthread
+  wasm_exec_env_t exec_env =
+      wasm_runtime_create_exec_env(module_inst, stack_size_for_exec_env);
+  if (!exec_env) {
+    snprintf(error_buf, sizeof(error_buf),
+             "Failed to create execution environment");
     Serial.printf("WAMR Error: %s\n", error_buf);
     return false;
   }
@@ -191,13 +270,19 @@ bool WamrModule::callFunction(const char *func_name, uint32_t argc,
     snprintf(error_buf, sizeof(error_buf), "Function '%s' not found",
              func_name);
     Serial.printf("WAMR Error: %s\n", error_buf);
+    wasm_runtime_destroy_exec_env(exec_env);
     return false;
   }
 
   Serial.printf("WAMR: Calling function '%s'...\n", func_name);
 
   // Call function
-  if (!wasm_runtime_call_wasm(exec_env, func, argc, argv)) {
+  bool success = wasm_runtime_call_wasm(exec_env, func, argc, argv);
+
+  // Clean up execution environment
+  wasm_runtime_destroy_exec_env(exec_env);
+
+  if (!success) {
     const char *exception = wasm_runtime_get_exception(module_inst);
     if (exception) {
       snprintf(error_buf, sizeof(error_buf), "Exception: %s", exception);
@@ -218,6 +303,11 @@ bool WamrModule::callFunction(const char *func_name, uint32_t argc,
   return true;
 }
 
+void WamrModule::setThreadStackSize(size_t stack_size) {
+  thread_stack_size = stack_size;
+  Serial.printf("WAMR: Thread stack size set to %u bytes\n", stack_size);
+}
+
 uint32_t WamrModule::getResult() { return last_result; }
 
 const char *WamrModule::getError() {
@@ -225,10 +315,7 @@ const char *WamrModule::getError() {
 }
 
 void WamrModule::unload() {
-  if (exec_env) {
-    wasm_runtime_destroy_exec_env(exec_env);
-    exec_env = nullptr;
-  }
+  // Note: exec_env is now created/destroyed per call, not stored
 
   if (module_inst) {
     wasm_runtime_deinstantiate(module_inst);
@@ -241,5 +328,6 @@ void WamrModule::unload() {
   }
 
   loaded = false;
+  stack_size_for_exec_env = 0;
   memset(error_buf, 0, sizeof(error_buf));
 }

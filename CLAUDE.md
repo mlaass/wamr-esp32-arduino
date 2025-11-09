@@ -29,7 +29,8 @@ wamr-esp32-arduino/
 ├── examples/                     # Arduino example sketches
 │   ├── basic_wasm/              # Basic usage example
 │   ├── native_functions/        # Native function export example
-│   └── memory_test/             # Memory profiling example
+│   ├── memory_test/             # Memory profiling example
+│   └── threading/               # Threading and API comparison example
 ├── docs/                        # Documentation
 │   ├── BUILDING_WASM.md        # Guide to compiling WASM
 │   ├── API_REFERENCE.md        # Complete API documentation
@@ -58,6 +59,7 @@ The wrapper handles:
 - Error handling and reporting
 - Serial debugging output
 - Arduino-style initialization
+- **Pthread safety**: Automatic pthread wrapping for WASM execution (Arduino tasks are not pthreads)
 
 ### WAMR Core Layer
 
@@ -98,6 +100,7 @@ pio ci --lib="." --board=esp32-s3-devkitc-1 examples/basic_wasm/basic_wasm.ino
 pio ci --lib="." --board=esp32dev examples/basic_wasm/basic_wasm.ino
 pio ci --lib="." --board=esp32dev examples/native_functions/native_functions.ino
 pio ci --lib="." --board=esp32dev examples/memory_test/memory_test.ino
+pio ci --lib="." --board=esp32dev examples/threading/threading.ino
 
 # Install library locally for testing
 pio lib install file://.
@@ -179,6 +182,7 @@ To enable additional WAMR features (e.g., AOT, WASI):
 pio ci --board=esp32dev examples/basic_wasm/basic_wasm.ino
 pio ci --board=esp32dev examples/native_functions/native_functions.ino
 pio ci --board=esp32dev examples/memory_test/memory_test.ino
+pio ci --board=esp32dev examples/threading/threading.ino
 
 # Test for ESP32-S3
 pio ci --board=esp32-s3-devkitc-1 examples/basic_wasm/basic_wasm.ino
@@ -249,6 +253,116 @@ The wrapper (`WAMR.cpp`) automatically:
 1. Tries to allocate from PSRAM (MALLOC_CAP_SPIRAM)
 2. Falls back to internal RAM if PSRAM unavailable
 3. Prints memory source to Serial
+
+## Threading and Pthread Safety
+
+### The Pthread Requirement Problem
+
+**Critical concept:** WAMR requires execution to happen in a pthread context, but Arduino's main task (setup/loop) is NOT a pthread.
+
+**Symptoms without pthread:**
+```
+assertion "pthread != NULL" failed: file "esp-idf/espidf_thread.c", line 123
+Guru Meditation Error: Core 1 panic'ed (abort).
+```
+
+### Dual API Design
+
+The library provides two APIs to solve this:
+
+**1. Safe API (callFunction) - Recommended**
+- Automatically creates pthread, executes WASM, returns result
+- Safe to call from setup(), loop(), any Arduino code
+- Overhead: ~100-500μs per call for pthread creation
+- Use for: General use, <100 calls/second
+
+**2. Raw API (callFunctionRaw) - Advanced**
+- Direct WASM execution without pthread wrapper
+- **MUST** be called from existing pthread context
+- **WILL CRASH** if called from Arduino main task
+- Zero pthread overhead
+- Use for: High-frequency calls (>100 Hz), custom thread pools
+
+### Implementation Details
+
+**Files:** `src/WAMR.h`, `src/WAMR.cpp`
+
+The implementation uses:
+- `WasmCallContext` struct to pass data to pthread
+- `wasm_thread_wrapper()` as pthread entry point
+- `pthread_create()` and `pthread_join()` for synchronous execution
+- Static `thread_stack_size` for configurable pthread stack
+
+**Key methods:**
+```cpp
+// Public safe API - auto pthread wrapper
+bool callFunction(const char* func_name, uint32_t argc, uint32_t* argv);
+
+// Public raw API - must be in pthread
+bool callFunctionRaw(const char* func_name, uint32_t argc, uint32_t* argv);
+
+// Configure pthread stack size
+static void setThreadStackSize(size_t stack_size);
+
+// Private internal implementation
+bool callFunctionInternal(const char* func_name, uint32_t argc, uint32_t* argv);
+```
+
+### Example Usage Patterns
+
+**Pattern 1: Simple Arduino usage (safe API)**
+```cpp
+void loop() {
+  uint32_t args[2] = {42, 58};
+  module.callFunction("add", 2, args);  // Safe - auto pthread
+  delay(100);
+}
+```
+
+**Pattern 2: High-frequency calls (raw API)**
+```cpp
+void* worker_thread(void* arg) {
+  WamrModule* module = (WamrModule*)arg;
+
+  // In pthread context, use raw API
+  for (int i = 0; i < 1000; i++) {
+    uint32_t args[2] = {i, i+1};
+    module->callFunctionRaw("add", 2, args);  // No pthread overhead
+  }
+  return nullptr;
+}
+
+void setup() {
+  // ... init WAMR ...
+  pthread_t thread;
+  pthread_create(&thread, nullptr, worker_thread, &module);
+  pthread_join(thread, nullptr);
+}
+```
+
+**Pattern 3: Custom pthread attributes**
+```cpp
+pthread_t thread;
+pthread_attr_t attr;
+pthread_attr_init(&attr);
+pthread_attr_setstacksize(&attr, 64 * 1024);  // Custom stack
+pthread_create(&thread, &attr, worker_thread, &module);
+pthread_join(thread, nullptr);
+pthread_attr_destroy(&attr);
+```
+
+### Performance Considerations
+
+**Benchmarks (ESP32 @ 240MHz):**
+- `callFunction()`: ~100-500μs overhead (pthread creation)
+- `callFunctionRaw()`: ~10-50μs overhead (function lookup only)
+- Actual WASM execution: varies by function complexity
+
+**When to use each API:**
+- **Safe API**: Default choice, occasional calls, simplicity
+- **Raw API**: >100 calls/sec, thread pool management, latency critical
+
+See `examples/threading/` for comprehensive demonstrations.
 
 ## Platform Support
 

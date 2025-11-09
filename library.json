@@ -13,12 +13,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourname/wamr-esp32-arduino.git"
+    "url": "https://github.com/mlaass/wamr-esp32-arduino.git"
   },
   "authors": [
     {
       "name": "WAMR-ESP32-Arduino Contributors",
-      "url": "https://github.com/yourname/wamr-esp32-arduino"
+      "url": "https://github.com/mlaass/wamr-esp32-arduino"
     },
     {
       "name": "Bytecode Alliance",
@@ -27,7 +27,7 @@
     }
   ],
   "license": "Apache-2.0",
-  "homepage": "https://github.com/yourname/wamr-esp32-arduino",
+  "homepage": "https://github.com/mlaass/wamr-esp32-arduino",
   "frameworks": "arduino",
   "platforms": "espressif32",
   "export": {
