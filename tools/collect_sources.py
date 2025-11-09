@@ -21,14 +21,26 @@ from pathlib import Path
 
 # Configuration: Files to include for minimal interpreter build
 SOURCE_PATTERNS = {
+    # Core version file
+    'core/': [
+        'version.h',
+        'config.h'
+    ],
+
     # Platform layer (ESP-IDF)
     'core/shared/platform/esp-idf/': [
         '*.c', '*.h'
     ],
 
+    # Platform include
+    'core/shared/platform/include/': [
+        '*.h'
+    ],
+
     # Platform common
     'core/shared/platform/common/': [
-        'posix/*.c', 'posix/*.h'
+        'posix/*.c', 'posix/*.h',
+        'libc-util/*.c', 'libc-util/*.h'
     ],
 
     # Memory allocators
@@ -52,12 +64,22 @@ SOURCE_PATTERNS = {
     # IWASM common
     'core/iwasm/common/': [
         '*.c', '*.h',
-        'arch/invokeNative_xtensa.s',
-        'arch/invokeNative_xtensa.S'
+        'arch/invokeNative_xtensa.S'  # Capital .S for assembly (not .s)
     ],
 
     # Interpreter
     'core/iwasm/interpreter/': [
+        '*.c', '*.h'
+    ],
+
+    # AOT (for future use, disabled by default)
+    'core/iwasm/aot/': [
+        '*.c', '*.h',
+        'arch/aot_reloc_xtensa.c'
+    ],
+
+    # Compilation (for future use, disabled by default)
+    'core/iwasm/compilation/': [
         '*.c', '*.h'
     ],
 
@@ -111,8 +133,8 @@ def collect_files(wamr_root, dest_root):
         print(f"Processing: {source_dir}")
 
         for pattern in patterns:
-            # Find matching files
-            matches = glob.glob(str(source_path / pattern), recursive=False)
+            # Find matching files (use recursive=True to handle subdirectory patterns)
+            matches = glob.glob(str(source_path / pattern), recursive=True)
 
             for match in matches:
                 match_path = Path(match)
@@ -122,8 +144,12 @@ def collect_files(wamr_root, dest_root):
                     skipped_files.append(match_path.name)
                     continue
 
-                # Calculate relative path from source_dir
-                rel_path = match_path.relative_to(source_path.parent)
+                # Calculate relative path from wamr core directory
+                # For files directly in core/, just use the filename
+                if source_dir == 'core/':
+                    rel_path = Path(match_path.name)
+                else:
+                    rel_path = match_path.relative_to(wamr_root / 'core')
 
                 # Destination path
                 dest_file = dest_root / 'src' / 'wamr' / rel_path

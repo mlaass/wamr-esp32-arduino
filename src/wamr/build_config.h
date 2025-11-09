@@ -51,6 +51,27 @@
 #define BH_FREE wasm_runtime_free
 #endif
 
+/* Runtime configuration constants */
+#ifndef WASM_STACK_GUARD_SIZE
+#define WASM_STACK_GUARD_SIZE (1024 * 3)  // 3KB for ESP32
+#endif
+
+#ifndef BLOCK_ADDR_CACHE_SIZE
+#define BLOCK_ADDR_CACHE_SIZE 64
+#endif
+
+#ifndef BLOCK_ADDR_CONFLICT_SIZE
+#define BLOCK_ADDR_CONFLICT_SIZE 2
+#endif
+
+#ifndef WASM_CONST_EXPR_STACK_SIZE
+#define WASM_CONST_EXPR_STACK_SIZE 4
+#endif
+
+#ifndef WASM_TABLE_MAX_SIZE
+#define WASM_TABLE_MAX_SIZE 1024
+#endif
+
 /* Disabled features (not needed for minimal build) */
 #define WASM_ENABLE_AOT 0
 #define WASM_ENABLE_JIT 0
