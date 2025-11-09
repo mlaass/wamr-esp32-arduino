@@ -234,6 +234,78 @@ const char* error = module.getError();
 module.unload();
 ```
 
+## Log Level Configuration
+
+The library supports configurable logging to help with debugging and reduce serial output in production.
+
+### Available Log Levels
+
+- **`WAMR_LOG_NONE`** (0) - No logging output
+- **`WAMR_LOG_ERROR`** (1) - Only error messages (default)
+- **`WAMR_LOG_DEBUG`** (2) - Error and debug messages
+
+### Usage
+
+Define `WAMR_LOG_LEVEL` before including the WAMR header:
+
+```cpp
+// Option 1: No logging (production builds)
+#define WAMR_LOG_LEVEL WAMR_LOG_NONE
+#include <WAMR.h>
+
+// Option 2: Errors only (default - no need to define)
+#include <WAMR.h>
+
+// Option 3: Full debug output (development/troubleshooting)
+#define WAMR_LOG_LEVEL WAMR_LOG_DEBUG
+#include <WAMR.h>
+```
+
+### What Gets Logged
+
+**ERROR level** includes:
+- Runtime initialization failures
+- Module loading/instantiation errors
+- Function call failures
+- Memory allocation errors
+- Thread creation errors
+
+**DEBUG level** includes all errors plus:
+- Runtime initialization progress
+- Module loading steps
+- Function call traces
+- Memory allocation details (PSRAM vs internal RAM)
+- Thread stack configuration
+
+### Example Output
+
+With `WAMR_LOG_DEBUG`:
+```
+WAMR: Initializing runtime...
+WAMR: Using PSRAM for heap
+WAMR: Runtime initialized with 131072 bytes heap
+WAMR: Loading module (1234 bytes)...
+WAMR: Module loaded successfully
+WAMR: Instantiating module (stack: 16384, heap: 65536)...
+WAMR: Module instantiated successfully
+WAMR: Module ready for execution
+WAMR: Calling function 'add'...
+WAMR: Function returned: 100
+WAMR: Function 'add' completed successfully
+```
+
+With `WAMR_LOG_ERROR` (default):
+```
+(Only errors are shown if they occur)
+```
+
+With `WAMR_LOG_NONE`:
+```
+(No WAMR logging output)
+```
+
+**Note:** The log level is set at compile time, so there's zero runtime overhead when logging is disabled.
+
 ## Performance
 
 Typical performance characteristics:

@@ -20,6 +20,39 @@
 // Include WAMR public API
 #include "wamr/iwasm/include/wasm_export.h"
 
+// Log level configuration
+// Users can define WAMR_LOG_LEVEL before including WAMR.h to set the log level
+// 
+// Available log levels:
+//   WAMR_LOG_NONE  (0) - No logging output
+//   WAMR_LOG_ERROR (1) - Only error messages (default)
+//   WAMR_LOG_DEBUG (2) - Error and debug messages
+//
+// Usage example:
+//   #define WAMR_LOG_LEVEL WAMR_LOG_DEBUG
+//   #include <WAMR.h>
+//
+#define WAMR_LOG_NONE  0
+#define WAMR_LOG_ERROR 1
+#define WAMR_LOG_DEBUG 2
+
+#ifndef WAMR_LOG_LEVEL
+#define WAMR_LOG_LEVEL WAMR_LOG_ERROR  // Default to ERROR level
+#endif
+
+// Log macros
+#if WAMR_LOG_LEVEL >= WAMR_LOG_ERROR
+#define WAMR_LOG_E(fmt, ...) Serial.printf("WAMR Error: " fmt "\n", ##__VA_ARGS__)
+#else
+#define WAMR_LOG_E(fmt, ...)
+#endif
+
+#if WAMR_LOG_LEVEL >= WAMR_LOG_DEBUG
+#define WAMR_LOG_D(fmt, ...) Serial.printf("WAMR: " fmt "\n", ##__VA_ARGS__)
+#else
+#define WAMR_LOG_D(fmt, ...)
+#endif
+
 // Default configuration values
 #define WAMR_DEFAULT_HEAP_SIZE (64 * 1024)      // 64KB default heap
 #define WAMR_MIN_HEAP_SIZE (16 * 1024)          // 16KB minimum
