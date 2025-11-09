@@ -29,8 +29,8 @@ struct WasmCallContext {
 // Pthread wrapper function
 void *wasm_thread_wrapper(void *arg) {
   WasmCallContext *ctx = (WasmCallContext *)arg;
-  ctx->success = ctx->module->callFunctionInternal(ctx->func_name, ctx->argc,
-                                                     ctx->argv);
+  ctx->success =
+      ctx->module->callFunctionInternal(ctx->func_name, ctx->argc, ctx->argv);
   return nullptr;
 }
 
@@ -40,11 +40,11 @@ void *wasm_thread_wrapper(void *arg) {
 
 bool WamrRuntime::begin(uint32_t heap_pool_size) {
   if (initialized) {
-    Serial.println("WAMR: Runtime already initialized");
+    Serial.println("WAMR Error: Runtime already initialized");
     return true;
   }
 
-  Serial.println("WAMR: Initializing runtime...");
+  // Serial.println("WAMR: Initializing runtime...");
 
   // Validate heap size
   if (heap_pool_size < WAMR_MIN_HEAP_SIZE) {
@@ -62,7 +62,7 @@ bool WamrRuntime::begin(uint32_t heap_pool_size) {
     Serial.println("WAMR: PSRAM not available, using internal RAM");
     global_heap_buf = (char *)malloc(heap_pool_size);
   } else {
-    Serial.println("WAMR: Using PSRAM for heap");
+    // Serial.println("WAMR: Using PSRAM for heap");
   }
 
   if (!global_heap_buf) {
@@ -88,8 +88,8 @@ bool WamrRuntime::begin(uint32_t heap_pool_size) {
   }
 
   initialized = true;
-  Serial.printf("WAMR: Runtime initialized with %u bytes heap\n",
-                heap_pool_size);
+  // Serial.printf("WAMR: Runtime initialized with %u bytes heap\n",
+  //               heap_pool_size);
   printMemoryUsage();
 
   return true;
@@ -100,7 +100,7 @@ void WamrRuntime::end() {
     return;
   }
 
-  Serial.println("WAMR: Shutting down runtime...");
+  // Serial.println("WAMR: Shutting down runtime...");
 
   wasm_runtime_destroy();
 
@@ -110,7 +110,7 @@ void WamrRuntime::end() {
   }
 
   initialized = false;
-  Serial.println("WAMR: Runtime shutdown complete");
+  // Serial.println("WAMR: Runtime shutdown complete");
 }
 
 void WamrRuntime::printMemoryUsage() {
@@ -151,7 +151,7 @@ bool WamrModule::load(const uint8_t *wasm_bytes, uint32_t size,
   // Unload any existing module
   unload();
 
-  Serial.printf("WAMR: Loading module (%u bytes)...\n", size);
+  // Serial.printf("WAMR: Loading module (%u bytes)...\n", size);
 
   // Load WASM module
   module = wasm_runtime_load(const_cast<uint8_t *>(wasm_bytes), size, error_buf,
@@ -161,11 +161,11 @@ bool WamrModule::load(const uint8_t *wasm_bytes, uint32_t size,
     return false;
   }
 
-  Serial.println("WAMR: Module loaded successfully");
+  // Serial.println("WAMR: Module loaded successfully");
 
   // Instantiate module
-  Serial.printf("WAMR: Instantiating module (stack: %u, heap: %u)...\n",
-                stack_size, heap_size);
+  // Serial.printf("WAMR: Instantiating module (stack: %u, heap: %u)...\n",
+  // stack_size, heap_size);
 
   module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                          error_buf, sizeof(error_buf));
@@ -176,14 +176,15 @@ bool WamrModule::load(const uint8_t *wasm_bytes, uint32_t size,
     return false;
   }
 
-  Serial.println("WAMR: Module instantiated successfully");
+  // Serial.println("WAMR: Module instantiated successfully");
 
   // Store stack size for later exec_env creation
-  // Note: exec_env must be created per-thread, not stored globally
+  // Note: exec_env must be created per-thread, not stored
+  // globally
   stack_size_for_exec_env = stack_size;
 
   loaded = true;
-  Serial.println("WAMR: Module ready for execution");
+  // Serial.println("WAMR: Module ready for execution");
 
   return true;
 }
@@ -274,7 +275,8 @@ bool WamrModule::callFunctionInternal(const char *func_name, uint32_t argc,
     return false;
   }
 
-  Serial.printf("WAMR: Calling function '%s'...\n", func_name);
+  // Note: Debug prints commented out to avoid skewing benchmarks
+  // //Serial.printf("WAMR: Calling function '%s'...\n", func_name);
 
   // Call function
   bool success = wasm_runtime_call_wasm(exec_env, func, argc, argv);
@@ -296,16 +298,16 @@ bool WamrModule::callFunctionInternal(const char *func_name, uint32_t argc,
   // Store result if function returned a value
   if (argc > 0 && argv) {
     last_result = argv[0];
-    Serial.printf("WAMR: Function returned: %u\n", last_result);
+    // //Serial.printf("WAMR: Function returned: %u\n", last_result);
   }
 
-  Serial.printf("WAMR: Function '%s' completed successfully\n", func_name);
+  // //Serial.printf("WAMR: Function '%s' completed successfully\n", func_name);
   return true;
 }
 
 void WamrModule::setThreadStackSize(size_t stack_size) {
   thread_stack_size = stack_size;
-  Serial.printf("WAMR: Thread stack size set to %u bytes\n", stack_size);
+  // Serial.printf("WAMR: Thread stack size set to %u bytes\n", stack_size);
 }
 
 uint32_t WamrModule::getResult() { return last_result; }
